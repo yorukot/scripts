@@ -14,6 +14,4 @@ path="../$branch"
 git fetch origin "pull/$pr_number/head:$branch"
 git worktree add "$path" "$branch"
 
-cd $path
-
-echo "Created & CD to worktree $path"
+echo "Created worktree $path"
