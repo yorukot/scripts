@@ -1,54 +1,51 @@
 #!/bin/bash
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 NO_COLOR='\033[0m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
 
-width1=5
-width2=6
-width3=30 # Width for the current branch
-width4=20
-max_branch_length=$width3
+branch_width=30
+commit_width=20
+remote_width=30
+max_branch_length=$branch_width
+max_remote_length=$remote_width
 
 # Get current branch name
 current_branch=$(git symbolic-ref --short HEAD)
 
-# Function to count commits ahead/behind from current branch
-count_commits() {
-  local branch="$1"
-  git rev-list --left-right --count "$current_branch...$branch" 2>/dev/null
-}
-
 # Print header
-printf "${GREEN}%-${width1}s ${RED}%-${width2}s ${BLUE}%-${width3}s ${YELLOW}%-${width4}s${NO_COLOR}\n" "Ahead" "Behind" "Branch" "Last Commit"
-printf "${GREEN}%-${width1}s ${RED}%-${width2}s ${BLUE}%-${width3}s ${YELLOW}%-${width4}s${NO_COLOR}\n" "-----" "------" "------------------------------" "-------------------"
+printf "${BLUE}%-${branch_width}s ${YELLOW}%-${commit_width}s ${GREEN}%-${remote_width}s${NO_COLOR}\n" "Branch" "Last Commit" "Remote"
+printf "${BLUE}%-${branch_width}s ${YELLOW}%-${commit_width}s ${GREEN}%-${remote_width}s${NO_COLOR}\n" "------------------------------" "-------------------" "------------------------------"
 
-format_string="%(refname:short)@%(committerdate:relative)"
+format_string="%(refname:short)%09%(committerdate:relative)%09%(upstream:short)"
 IFS=$'\n'
 
 for line in $(git for-each-ref --sort=-committerdate --format="$format_string" refs/heads/); do
-  branch=$(echo "$line" | cut -d '@' -f1)
-  time=$(echo "$line" | cut -d '@' -f2)
+  IFS=$'\t' read -r branch time remote <<< "$line"
+  IFS=$'\n'
 
   if [ "$branch" = "$current_branch" ]; then
-    ahead="-"
-    behind="-"
     mark="*"
   else
     mark=" "
-    ab=$(count_commits "$branch")
-    ahead=$(echo "$ab" | cut -f2)
-    behind=$(echo "$ab" | cut -f1)
   fi
 
-  # ⛏️ Truncate long branch name
+  # Truncate long branch name
   short_branch=$branch
   if [ ${#branch} -gt $max_branch_length ]; then
-    short_branch="${branch:0:$((max_branch_length - 1))}…"
+    short_branch="${branch:0:$((max_branch_length - 3))}..."
   fi
 
-  printf "${GREEN}%-${width1}s ${RED}%-${width2}s ${BLUE}${mark}%-${width3}s ${YELLOW}%-${width4}s${NO_COLOR}\n" "$ahead" "$behind" "$short_branch" "$time"
+  if [ -z "$remote" ]; then
+    remote="-"
+  fi
+
+  short_remote=$remote
+  if [ ${#remote} -gt $max_remote_length ]; then
+    short_remote="${remote:0:$((max_remote_length - 3))}..."
+  fi
+
+  printf "${BLUE}${mark}%-${branch_width}s ${YELLOW}%-${commit_width}s ${GREEN}%-${remote_width}s${NO_COLOR}\n" "$short_branch" "$time" "$short_remote"
 done
